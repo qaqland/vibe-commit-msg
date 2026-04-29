@@ -1,0 +1,17 @@
+Show git commit history. Returns commit metadata, subject, and body for
+recent commits. Supports filtering by author and path. If no matches are
+found, `[No commits found]` is returned.
+
+Usage:
+- The `author` parameter is optional and accepts a regex pattern matching
+  author name or email (e.g. `John`, `john@example.com`).
+- The `path` parameter is optional and restricts results to commits that
+  touched files under the given path. Paths start from `/`, where `/` refers
+  to the git repository root.
+- The `offset` parameter is 1-indexed and controls the number of commits to
+  skip before starting (default 1).
+- The `limit` parameter controls the maximum number of commits returned
+  (default 20, max 100).
+- Commits are separated by `---` for easy parsing.
+- Use this tool to understand the project's commit style, recent changes, or
+  find context for related changes.

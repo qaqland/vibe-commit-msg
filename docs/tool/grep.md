@@ -1,0 +1,18 @@
+Search file contents using regular expressions against the staged
+repository snapshot. If no matches are found, `[No matches found]` is
+returned.
+
+Usage:
+- The `pattern` parameter is required and supports full regex syntax (e.g.
+  `log.*Error`, `function\s+\w+`, etc.).
+- The `path` parameter restricts the search to a specific directory.
+  Defaults to the repository root.
+- Paths start from `/`, where `/` refers to the git repository root rather
+  than the local filesystem root. For example, `/src` refers to the
+  project's `src/` directory in the repository root.
+- Returns file paths and line numbers with at least one match, grouped by
+  file path.
+- Results are limited to 100 matches. When truncated, use a more specific
+  path or pattern to narrow the search.
+- Any line longer than 2000 characters is truncated.
+- Use this tool when you need to find files containing specific patterns.

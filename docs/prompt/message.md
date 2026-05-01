@@ -44,3 +44,11 @@ Output constraints (violating these will break the tool):
     preceding text of any kind
   - Do not include analysis, reasoning, lists of files changed, or
     any commentary before or after the commit message
+
+Reference template:
+  When a ## Reference Template section is provided, it contains an
+  existing commit message drafted by other hooks or templates. Use it
+  as a starting point: preserve its intent, structure, and key phrasing
+  where they align with the change summary, but still apply the style
+  rules and hard rules above. If the template contradicts the actual
+  changes, prioritize accuracy over the template.

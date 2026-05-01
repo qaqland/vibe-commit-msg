@@ -110,7 +110,12 @@ pub async fn commit(config: &Config) -> Result<String> {
     Ok(response.trim().to_string())
 }
 
-pub async fn message(config: &Config, summary: &str, style_cache: &str) -> Result<String> {
+pub async fn message(
+    config: &Config,
+    summary: &str,
+    style_cache: &str,
+    template: Option<&str>,
+) -> Result<String> {
     let client = openai::CompletionsClient::builder()
         .api_key(&config.auth_key)
         .base_url(&config.base_url)
@@ -118,10 +123,14 @@ pub async fn message(config: &Config, summary: &str, style_cache: &str) -> Resul
 
     let preamble = prompt_description!("message");
 
-    let prompt_text = format!(
+    let mut prompt_text = format!(
         "## Style Rules\n\n{}\n\n## Change Summary\n\n{}",
         style_cache, summary
     );
+
+    if let Some(tmpl) = template {
+        prompt_text.push_str(&format!("\n\n## Reference Template\n\n{}", tmpl));
+    }
 
     let agent = client.agent(&config.model_id).preamble(preamble).build();
 

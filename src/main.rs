@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use anyhow::Result;
 
 use vibe_commit_msg::config::Config;
@@ -5,9 +7,10 @@ use vibe_commit_msg::llm;
 use vibe_commit_msg::tool::{self, cache};
 
 pub enum Mode {
-    Commit,
+    Commit(Option<PathBuf>),
     English(String),
     Help,
+    Skip,
     Summary,
     Tool(String, String),
 }
@@ -26,7 +29,7 @@ Generate commit messages with AI from staged changes.
 fn parse_args() -> Result<Mode, lexopt::Error> {
     use lexopt::prelude::*;
 
-    let mut mode = Mode::Commit;
+    let mut mode = Mode::Commit(None);
     let mut free = Vec::new();
 
     let mut parser = lexopt::Parser::from_env();
@@ -67,7 +70,19 @@ fn parse_args() -> Result<Mode, lexopt::Error> {
         }
     }
 
-    Ok(mode)
+    if !matches!(mode, Mode::Commit(_)) {
+        return Ok(mode);
+    }
+
+    let Some(editpath) = free.first() else {
+        return Ok(Mode::Commit(None));
+    };
+
+    if free.len() == 1 && editpath.to_string_lossy().ends_with("COMMIT_EDITMSG") {
+        return Ok(Mode::Commit(Some(editpath.into())));
+    }
+
+    Ok(Mode::Skip)
 }
 
 async fn refresh_caches(config: &Config) -> Result<()> {
@@ -82,7 +97,7 @@ async fn run() -> Result<()> {
     let mode = parse_args()?;
     let config = Config::load()?;
     match mode {
-        Mode::Commit => {
+        Mode::Commit(editmsg_path) => {
             tool::staged_hash()?;
             tool::ensure_cache_dir();
 
@@ -94,18 +109,38 @@ async fn run() -> Result<()> {
                 refresh_caches(&config).await?;
             }
 
+            let template = editmsg_path.as_ref().and_then(|p| {
+                let content = std::fs::read_to_string(p).ok()?;
+                let filtered: String = content
+                    .lines()
+                    .filter(|line| !line.starts_with('#'))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                let trimmed = filtered.trim_end().to_string();
+                if trimmed.is_empty() {
+                    None
+                } else {
+                    Some(trimmed)
+                }
+            });
+
             let summary = llm::commit(&config).await?;
 
             if summary == "[No staged changes]" {
-                println!("{}", summary);
+                eprintln!("No staged changes");
                 return Ok(());
             }
 
             let style_cache = cache::read_cache_file("style.md")
                 .unwrap_or_else(|| "[No style cache found]".to_string());
 
-            let output = llm::message(&config, &summary, &style_cache).await?;
-            println!("{}", output);
+            let output = llm::message(&config, &summary, &style_cache, template.as_deref()).await?;
+
+            if let Some(ref path) = editmsg_path {
+                std::fs::write(path, &output)?;
+            } else {
+                println!("{}", output);
+            }
         }
         Mode::English(input) => {
             let output = llm::translator(&config, &input).await?;
@@ -115,6 +150,7 @@ async fn run() -> Result<()> {
             println!("{}", USAGE);
             std::process::exit(0);
         }
+        Mode::Skip => {}
         Mode::Summary => {
             tool::staged_hash()?;
             tool::ensure_cache_dir();

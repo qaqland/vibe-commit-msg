@@ -4,7 +4,7 @@ macro_rules! prompt_description {
             env!("CARGO_MANIFEST_DIR"),
             "/docs/prompt/",
             $name,
-            ".md"
+            ".txt"
         ))
     };
 }

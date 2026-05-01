@@ -110,7 +110,7 @@ macro_rules! tool_description {
             env!("CARGO_MANIFEST_DIR"),
             "/docs/tool/",
             $name,
-            ".md"
+            ".txt"
         ))
     };
 }

@@ -10,12 +10,29 @@ macro_rules! prompt_description {
 }
 
 use anyhow::Result;
+use rig::agent::{PromptHook, ToolCallHookAction};
 use rig::client::CompletionClient;
 use rig::completion::Prompt;
 use rig::providers::openai;
 
 use crate::config::Config;
 use crate::tool::{Cache, Diff, Glob, Grep, List, Log, Read, Stat};
+
+#[derive(Clone)]
+struct ToolLog;
+
+impl PromptHook<openai::CompletionModel> for ToolLog {
+    async fn on_tool_call(
+        &self,
+        name: &str,
+        _: Option<String>,
+        _: &str,
+        args: &str,
+    ) -> ToolCallHookAction {
+        eprintln!("  {:>5} {args}", name);
+        ToolCallHookAction::cont()
+    }
+}
 
 pub async fn translator(config: &Config, input: &str) -> Result<String> {
     let client = openai::CompletionsClient::builder()
@@ -43,6 +60,7 @@ pub async fn summarize(config: &Config) -> Result<String> {
         .agent(&config.model_id)
         .preamble(preamble)
         .default_max_turns(20)
+        .hook(ToolLog)
         .tool(List)
         .tool(Glob)
         .tool(Grep)
@@ -71,6 +89,7 @@ pub async fn style(config: &Config) -> Result<String> {
         .agent(&config.model_id)
         .preamble(preamble)
         .default_max_turns(15)
+        .hook(ToolLog)
         .tool(Glob)
         .tool(Grep)
         .tool(Read)
@@ -96,6 +115,7 @@ pub async fn commit(config: &Config) -> Result<String> {
         .agent(&config.model_id)
         .preamble(preamble)
         .default_max_turns(15)
+        .hook(ToolLog)
         .tool(Cache)
         .tool(Diff)
         .tool(Stat)

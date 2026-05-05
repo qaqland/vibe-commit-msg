@@ -33,8 +33,6 @@ impl Tool for Stat {
     }
 
     async fn call(&self, _args: Self::Args) -> Result<Self::Output, Self::Error> {
-        eprint!("{} ", Self::NAME);
-
         let output = super::run_git(["diff", "--cached", "--numstat"]);
 
         if !output.status.success() {

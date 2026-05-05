@@ -69,8 +69,6 @@ impl Tool for Read {
             tool_bail!("Limit must be greater than or equal to 1");
         }
 
-        eprint!("{} ", Self::NAME);
-
         let entry = git_find(&args.path)?;
 
         match entry {

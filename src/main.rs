@@ -16,9 +16,9 @@ pub enum Mode {
 }
 
 const USAGE: &str = "\
-vibe-commit-msg [flags]
+usage: vibe-commit-msg [flags]
 
-Generate commit messages with AI from staged changes.
+LLM-powered commit message generator from staged changes.
 
   (no flag)  Generate commit message
   -s         Update project memory + style caches
@@ -86,9 +86,9 @@ fn parse_args() -> Result<Mode, lexopt::Error> {
 }
 
 async fn refresh_caches(config: &Config) -> Result<()> {
-    eprintln!("Refreshing project summary cache...");
+    eprintln!("refreshing project summary cache");
     llm::summarize(config).await?;
-    eprintln!("Refreshing style cache...");
+    eprintln!("refreshing style cache");
     llm::style(config).await?;
     Ok(())
 }
@@ -102,10 +102,10 @@ async fn run() -> Result<()> {
             tool::ensure_cache_dir();
 
             if cache::is_stale("style.md") {
-                eprintln!("Style cache is stale, refreshing...");
+                eprintln!("refreshing stale style cache");
                 refresh_caches(&config).await?;
             } else if cache::is_stale("project.md") {
-                eprintln!("Project cache is stale, refreshing...");
+                eprintln!("refreshing stale project cache");
                 refresh_caches(&config).await?;
             }
 
@@ -124,17 +124,23 @@ async fn run() -> Result<()> {
                 }
             });
 
-            let summary = llm::commit(&config).await?;
+            let summary = {
+                eprintln!("analyzing staged changes");
+                llm::commit(&config).await?
+            };
 
             if summary == "[No staged changes]" {
-                eprintln!("No staged changes");
+                eprintln!("no staged changes");
                 return Ok(());
             }
 
             let style_cache = cache::read_cache_file("style.md")
                 .unwrap_or_else(|| "[No style cache found]".to_string());
 
-            let output = llm::message(&config, &summary, &style_cache, template.as_deref()).await?;
+            let output = {
+                eprintln!("generating commit message");
+                llm::message(&config, &summary, &style_cache, template.as_deref()).await?
+            };
 
             if let Some(ref path) = editmsg_path {
                 std::fs::write(path, &output)?;
@@ -143,6 +149,7 @@ async fn run() -> Result<()> {
             }
         }
         Mode::English(input) => {
+            eprintln!("translating");
             let output = llm::translator(&config, &input).await?;
             println!("{}", output);
         }

@@ -45,8 +45,6 @@ impl Tool for Diff {
             }
         }
 
-        eprint!("{} ", Self::NAME);
-
         let pathspec = args
             .path
             .as_deref()

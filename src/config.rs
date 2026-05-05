@@ -19,7 +19,8 @@ impl Config {
         let model_id =
             read_git_config("vibe.model-id")?.unwrap_or_else(|| DEFAULT_MODEL_ID.to_owned());
 
-        let auth_key = read_git_config("vibe.auth-key")?.ok_or_else(|| anyhow!("vibe.auth-key"))?;
+        let auth_key =
+            read_git_config("vibe.auth-key")?.ok_or_else(|| anyhow!("vibe.auth-key is not set"))?;
 
         Ok(Self {
             base_url,
@@ -50,7 +51,7 @@ fn read_git_config(key: &str) -> Result<Option<String>> {
         .to_string();
 
     if !output.status.success() {
-        bail!("git config {}", stderr);
+        bail!("git config: {}", stderr);
     }
     if stdout.is_empty() {
         Ok(None)

@@ -44,8 +44,6 @@ impl Tool for Glob {
             tool_bail!("pattern is required");
         }
 
-        eprint!("{} ", Self::NAME);
-
         let git_args: Vec<&str> = vec![
             "--glob-pathspecs",
             "ls-files",

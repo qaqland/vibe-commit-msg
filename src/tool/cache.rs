@@ -99,8 +99,6 @@ impl Tool for Cache {
     async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
         let dir = super::cache_dir();
 
-        eprint!("{} ", Self::NAME);
-
         match (args.path.as_deref(), args.content.as_deref()) {
             (None, None) => {
                 let _ = std::fs::create_dir_all(&dir);

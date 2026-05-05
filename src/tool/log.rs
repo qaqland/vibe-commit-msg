@@ -73,8 +73,6 @@ impl Tool for Log {
             tool_bail!("limit must be between 1 and {}", MAX_LIMIT);
         }
 
-        eprint!("{} ", Self::NAME);
-
         let author = args.author.as_deref().unwrap_or(".");
         let skip_str = skip.to_string();
         let limit_str = limit.to_string();

@@ -43,8 +43,6 @@ impl Tool for List {
             tool_bail!("Path must start with '/'");
         }
 
-        eprint!("{} ", Self::NAME);
-
         let entry = super::git_find(&args.path)?;
 
         match entry {

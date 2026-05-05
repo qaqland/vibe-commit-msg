@@ -81,8 +81,6 @@ impl Tool for Grep {
             .unwrap_or(".")
             .to_string();
 
-        eprint!("{} ", Self::NAME);
-
         let git_args: Vec<&str> = vec![
             "grep",
             "--threads",

@@ -29,7 +29,7 @@ impl PromptHook<openai::CompletionModel> for ToolLog {
         _: &str,
         args: &str,
     ) -> ToolCallHookAction {
-        eprintln!("  {:>5} {args}", name);
+        eprintln!("  {:>5} {:.50}", name, args);
         ToolCallHookAction::cont()
     }
 }

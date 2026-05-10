@@ -1,10 +1,8 @@
 Show git commit history. Returns commit metadata, subject, and body for
-recent commits. Supports filtering by author and path. If no matches are
-found, `[No commits found]` is returned.
+recent commits. Supports filtering by path. If no matches are found,
+`[No commits found]` is returned.
 
 Usage:
-- The `author` parameter is optional and accepts a regex pattern matching
-  author name or email (e.g. `John`, `john@example.com`).
 - The `path` parameter is optional and restricts results to commits that
   touched files under the given path. Paths start from `/`, where `/` refers
   to the git repository root.

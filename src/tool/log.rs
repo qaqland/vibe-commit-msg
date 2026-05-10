@@ -13,7 +13,6 @@ pub struct Log;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct LogArgs {
-    pub author: Option<String>,
     pub path: Option<String>,
     pub offset: Option<usize>,
     pub limit: Option<usize>,
@@ -33,10 +32,6 @@ impl Tool for Log {
             parameters: serde_json::json!({
                 "type": "object",
                 "properties": {
-                    "author": {
-                        "type": "string",
-                        "description": "Filter commits by author name or email (regex pattern)"
-                    },
                     "path": {
                         "type": "string",
                         "description": "Filter commits that touched files under this path. Paths start from '/'."
@@ -73,7 +68,6 @@ impl Tool for Log {
             tool_bail!("limit must be between 1 and {}", MAX_LIMIT);
         }
 
-        let author = args.author.as_deref().unwrap_or(".");
         let skip_str = skip.to_string();
         let limit_str = limit.to_string();
         let path_arg = match args.path.as_deref() {
@@ -85,8 +79,6 @@ impl Tool for Log {
             "log",
             "--date=short",
             "--format=%H%n%an <%ae>%n%ad%n%s%n%b%x00",
-            "--author",
-            author,
             "--skip",
             &skip_str,
             "-n",

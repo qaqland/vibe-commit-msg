@@ -12,15 +12,9 @@ Step 2 — Analyze actual history:
 
   2a. Overall scan:
     Use `log` with limit=100 to examine recent commits. Extract the
-    default style (subject prefix, casing, body usage, etc.) and note
-    how many commits each author has.
+    default style (subject prefix, casing, body usage, etc.).
 
-  2b. Top contributor analysis:
-    From 2a, identify the 2-3 authors with the most commits. If their
-    style deviates from the overall pattern, note the differences.
-    These are the maintainers whose style the project should follow.
-
-  2c. Path-specific analysis:
+  2b. Path-specific analysis:
     Use `list` on `/` to see top-level directories. For directories
     with enough commit activity, use `log` with the `path` parameter
     (e.g. `path=/docs`, `path=/src`, `path=/.github`) and limit=30
@@ -61,9 +55,6 @@ Step 3 — Write the style cache:
     in natural language (e.g. "/spa/plugins/ uses 'spa: <subdir>:'
     prefix", "/docs uses 'docs:' with no body"). Omit if no
     path-specific patterns found.
-  - Author style notes: describe notable style preferences of top
-    contributors (e.g. "core authors prefer feat/fix only, rarely use
-    chore/refactor"). Omit if author style matches the default.
   - Any project-specific rules found in documentation
 
   If documented conventions conflict with actual history, prefer actual

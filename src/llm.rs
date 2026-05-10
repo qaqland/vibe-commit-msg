@@ -18,6 +18,8 @@ use rig::providers::openai;
 use crate::config::Config;
 use crate::tool::{Cache, Diff, Glob, Grep, List, Log, Read, Stat};
 
+const DEFAULT_MAX_TURNS: usize = 100;
+
 #[derive(Clone)]
 struct ToolLog;
 
@@ -59,7 +61,7 @@ pub async fn summarize(config: &Config) -> Result<String> {
     let agent = client
         .agent(&config.model_id)
         .preamble(preamble)
-        .default_max_turns(20)
+        .default_max_turns(DEFAULT_MAX_TURNS)
         .hook(ToolLog)
         .tool(List)
         .tool(Glob)
@@ -88,7 +90,7 @@ pub async fn style(config: &Config) -> Result<String> {
     let agent = client
         .agent(&config.model_id)
         .preamble(preamble)
-        .default_max_turns(15)
+        .default_max_turns(DEFAULT_MAX_TURNS)
         .hook(ToolLog)
         .tool(Glob)
         .tool(Grep)
@@ -114,7 +116,7 @@ pub async fn commit(config: &Config) -> Result<String> {
     let agent = client
         .agent(&config.model_id)
         .preamble(preamble)
-        .default_max_turns(15)
+        .default_max_turns(DEFAULT_MAX_TURNS)
         .hook(ToolLog)
         .tool(Cache)
         .tool(Diff)

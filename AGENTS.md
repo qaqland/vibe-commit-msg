@@ -1,5 +1,12 @@
 # AGENTS.md
 
+## Project Constraints (from RULES.md)
+- **No git libraries** — shell out to `Command::new("git")` only. No git2-rs, gitoxide, etc.
+- **Config via `git config` only** — no standalone config files; see `src/config.rs`.
+- **No author metadata in commit messages** — no Co-authored-by or similar. Authorship is the user's responsibility.
+- **No unit tests** — all testing is bats-based integration tests in `tests/`.
+- **OpenAI-compatible API only, never stream** — use `rig::providers::openai` with non-streaming `prompt()`.
+
 ## Repo Shape
 - Single-crate Rust CLI (`edition = "2024"` — requires Rust 1.85+). Binary `src/main.rs`; lib modules in `src/lib.rs`.
 - Core logic: `src/llm.rs`, `src/config.rs`, `src/tool/` (8 tools + shared helpers in `src/tool/mod.rs`).
@@ -13,7 +20,7 @@
 - Tools that read file content/listings from the frozen tree hash: **read**, **list**, **grep** (via `git ls-tree`/`git cat-file`/`git grep <tree>`).
 - Tools that read from the live index (not the tree hash): **diff** (`git diff --cached`), **stat** (`git diff --cached --numstat`), **glob** (`git ls-files --cached`). They see what `git add` staged; in practice identical to the tree since the index doesn't change during execution.
 - **log** operates on commit history (HEAD), unrelated to the staged snapshot.
-- All tool paths are **repository-absolute** strings starting with `/` (e.g. `/src/main.rs`). Enforced by read/list/diff/log. Paths are passed as-is to `git ls-tree`/`git cat-file`.
+- All tool paths are **repository-absolute** strings starting with `/` (e.g. `/src/main.rs`). Enforced by read/list/log. Paths are passed as-is to `git ls-tree`/`git cat-file`.
 - **Must be run inside a git repo.**
 
 ## Config
@@ -54,10 +61,14 @@ Before step 1, caches are auto-refreshed if stale (>7 days, see `STALENESS_SECS`
 
 ## Verification
 ```
-cargo check          # fast compile check (no tests exist)
-cargo fmt --check    # formatting
-cargo run -- -t <tool> '<json>'   # debug a single tool
+cargo check                       # fast compile check
+cargo fmt --check                 # formatting
+make test                         # build release + run all bats tests
+VIBE_BIN=./target/release/vibe-commit-msg bats tests/read.bats  # single test file
+cargo build --release             # build only (tests require release binary)
+cargo run --release -- -t <tool> '<json>'  # debug a single tool
 ```
+Tests require `bats-core` with `bats-support` and `bats-assert` libraries. Each test creates a temp git repo (`setup()` in `tests/test_helper.bash`).
 
 ## Commands
 | Flag | Description |
@@ -69,8 +80,7 @@ cargo run -- -t <tool> '<json>'   # debug a single tool
 | `-h` | Show help |
 | `VIBE_DEBUG=1` | Enable error chain trace in any mode |
 
-## Unimplemented / Known Issues
+## Known Issues
 - Line truncation at 2000 chars — documented in tool descriptions but not enforced in code.
 - `grep` uses `--basic-regexp` (BRE) but description claims "full regex syntax".
 - `parse_grep_line` in `grep.rs` uses `rsplit_once(':')` which breaks on file paths containing `:`.
-- `log` uses `--author` with default `"."` (matches all authors) — the regex filter is always applied.

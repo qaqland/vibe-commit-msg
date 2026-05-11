@@ -264,6 +264,5 @@ fn tool_set() -> ToolSet {
 
 pub async fn run_tool(name: &str, json: &str) -> Result<String> {
     let raw = tool_set().call(name, json.to_string()).await?;
-    let clean: String = serde_json::from_str(&raw)?;
-    Ok(clean)
+    Ok(raw)
 }

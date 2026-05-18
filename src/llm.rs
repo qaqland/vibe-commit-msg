@@ -67,9 +67,6 @@ pub async fn summarize(config: &Config) -> Result<String> {
         .tool(Glob)
         .tool(Grep)
         .tool(Read)
-        .tool(Diff)
-        .tool(Stat)
-        .tool(Log)
         .tool(Cache)
         .build();
 

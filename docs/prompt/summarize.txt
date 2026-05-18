@@ -8,9 +8,7 @@ Workflow:
 2. Use `cache` with a `path` to read any existing files you want to
    review.
 3. Explore the repository with `list`, `read`, `glob`, and `grep`.
-4. Use `diff` and `stat` to see what changed in the staged snapshot.
-   Use `log` to understand the commit style conventions.
-5. Use `cache` with `path` and `content` to write or update files.
+4. Use `cache` with `path` and `content` to write or update files.
 
 Cache file rules:
 - Each file MUST have valid YAML front matter at the top:
@@ -26,5 +24,6 @@ Cache file rules:
 On first run (no existing cache): explore thoroughly and build
 relevant files from scratch.
 
-On subsequent runs: read existing files, check staged changes, and
-update only what needs updating. Keep what is still accurate.
+On subsequent runs: read existing files, rescan only the parts of the
+repository needed to verify or update them, and keep what is still
+accurate.

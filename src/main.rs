@@ -144,6 +144,7 @@ async fn run() -> Result<()> {
 
             if let Some(ref path) = editmsg_path {
                 std::fs::write(path, &output)?;
+                eprint!("\x07");
             } else {
                 println!("{}", output);
             }

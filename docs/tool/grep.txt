@@ -14,5 +14,4 @@ Usage:
   file path.
 - Results are limited to 100 matches. When truncated, use a more specific
   path or pattern to narrow the search.
-- Any line longer than 2000 characters is truncated.
 - Use this tool when you need to find files containing specific patterns.

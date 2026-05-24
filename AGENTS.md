@@ -17,7 +17,7 @@
 
 ## Runtime Model
 - `staged_hash()` in `src/tool/mod.rs` does `git rev-parse --show-toplevel` → `cd` → `git write-tree`, stored in a `OnceLock`. Called once at startup (all modes except Help).
-- Tools that read file content/listings from the frozen tree hash: **read**, **list**, **grep** (via `git ls-tree`/`git cat-file`/`git grep <tree>`).
+- Tools that read file content/listings from the frozen tree hash: **read**, **list**, **grep** (via `git ls-tree`/`git cat-file`/`git grep --null <tree>`).
 - Tools that read from the live index (not the tree hash): **diff** (`git diff --cached`), **stat** (`git diff --cached --numstat`), **glob** (`git ls-files --cached`). They see what `git add` staged; in practice identical to the tree since the index doesn't change during execution.
 - **log** operates on commit history (HEAD), unrelated to the staged snapshot.
 - All tool paths are **repository-absolute** strings starting with `/` (e.g. `/src/main.rs`). Enforced by read/list/log. Paths are passed as-is to `git ls-tree`/`git cat-file`.
@@ -54,7 +54,7 @@ Before step 1, caches are auto-refreshed if stale (>7 days, see `STALENESS_SECS`
 ## Tool Constraints (enforced by `paginate_output` in `src/tool/mod.rs`)
 - **read**: default 2000 lines, capped at 50 KB. Use `offset`/`limit` to paginate.
 - **list**: capped at 200 entries / 50 KB. No offset/limit — use `glob` for narrower lookup.
-- **grep** / **glob**: capped at 100 matches/files.
+- **grep**: uses `--perl-regexp` (PCRE) with `--null` for safe NUL-separated parsing. Capped at 100 matches / 50 KB.
 - **diff** / **stat**: capped at 50 KB (no line limit). Stat capped at 200 entries.
 - **log**: default 20 commits, max 100. Capped at 50 KB.
 - Truncation notices appended (e.g. `[Showing 1-100 of 523...]`).
@@ -81,6 +81,4 @@ Tests require `bats-core` with `bats-support` and `bats-assert` libraries. Each 
 | `VIBE_DEBUG=1` | Enable error chain trace in any mode |
 
 ## Known Issues
-- Line truncation at 2000 chars — documented in tool descriptions but not enforced in code.
-- `grep` uses `--basic-regexp` (BRE) but description claims "full regex syntax".
-- `parse_grep_line` in `grep.rs` uses `rsplit_once(':')` which breaks on file paths containing `:`.
+(none currently)

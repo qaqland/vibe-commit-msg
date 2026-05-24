@@ -17,7 +17,6 @@ Usage:
 - Contents are returned with each line prefixed by its line number as
   `<line>: <content>`. For example, if a file has contents `foo\n`, you
   will receive `1: foo\n`.
-- Any line longer than 2000 characters is truncated.
 - File output is capped at 50 KB per call. When capped, use the returned
   `offset` hint to continue.
 - Call this tool in parallel when you know there are multiple files to read.

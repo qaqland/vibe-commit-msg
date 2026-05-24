@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use super::{paginate_output, tool_bail};
 
 pub fn show(_args: &str) -> String {
-    "(index)".into()
+    "staged".into()
 }
 
 const MAX_BYTES: usize = 50 * 1024;

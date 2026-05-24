@@ -10,10 +10,10 @@ pub fn show(args: &str) -> String {
         return "(?)".into();
     };
     match (parsed.path.as_deref(), parsed.content.as_deref()) {
-        (None, None) => "(list)".into(),
-        (Some(path), None) => format!("(load) {}", path),
-        (Some(path), Some(_)) => format!("(save) {}", path),
-        (None, Some(_)) => "(save) ?".into(),
+        (None, None) => "list".into(),
+        (Some(path), None) => format!("load {}", path),
+        (Some(path), Some(_)) => format!("save {}", path),
+        (None, Some(_)) => "save ?".into(),
     }
 }
 

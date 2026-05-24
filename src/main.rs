@@ -85,7 +85,7 @@ fn parse_args() -> Result<Mode, lexopt::Error> {
 }
 
 async fn refresh_caches() -> Result<()> {
-    eprintln!("refreshing project summary cache");
+    eprintln!("refreshing project cache");
     llm::summarize().await?;
     eprintln!("refreshing style cache");
     llm::style().await?;
@@ -101,11 +101,7 @@ async fn run() -> Result<()> {
             tool::staged_hash()?;
             tool::ensure_cache_dir();
 
-            if cache::is_stale("style.md") {
-                eprintln!("refreshing stale style cache");
-                refresh_caches().await?;
-            } else if cache::is_stale("project.md") {
-                eprintln!("refreshing stale project cache");
+            if cache::is_stale("style.md") || cache::is_stale("project.md") {
                 refresh_caches().await?;
             }
 
@@ -163,6 +159,7 @@ async fn run() -> Result<()> {
             tool::staged_hash()?;
             tool::ensure_cache_dir();
             refresh_caches().await?;
+            eprintln!("done");
         }
         Mode::Tool(name, json) => {
             tool::staged_hash()?;

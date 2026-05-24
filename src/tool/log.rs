@@ -9,20 +9,15 @@ pub fn show(args: &str) -> String {
     let Ok(parsed) = serde_json::from_str::<LogArgs>(args) else {
         return "(?)".into();
     };
+    // ref: https://github.com/0xPlaygrounds/rig/issues/1744
     let mut parts = Vec::new();
-    if let Some(p) = parsed.path {
-        parts.push(p);
-    }
+    parts.push(parsed.path.unwrap_or_else(|| "/".into()));
     let offset = parsed.offset.unwrap_or(1);
     let limit = parsed.limit.unwrap_or(DEFAULT_LIMIT);
     if offset != 1 || limit != DEFAULT_LIMIT {
-        parts.push(format!("({}-{})", offset, offset + limit - 1));
+        parts.push(format!("{}-{}", offset, offset + limit - 1));
     }
-    if parts.is_empty() {
-        "(recent)".into()
-    } else {
-        parts.join(" ")
-    }
+    parts.join(" ")
 }
 
 const MAX_BYTES: usize = 50 * 1024;

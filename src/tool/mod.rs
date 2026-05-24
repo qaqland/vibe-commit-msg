@@ -303,7 +303,7 @@ impl PromptHook<openai::CompletionModel> for ToolLog {
             "subagent" => subagent::show(args),
             _ => "(?)".into(),
         };
-        eprintln!("{:>8} {}", name, summary);
+        eprintln!(" - {:<9} {}", name, summary);
         ToolCallHookAction::cont()
     }
 }

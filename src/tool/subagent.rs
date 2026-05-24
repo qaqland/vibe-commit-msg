@@ -26,7 +26,7 @@ pub fn show(args: &str) -> String {
     } else {
         parsed.task
     };
-    format!("({}) \"{}\"", level, task)
+    format!("{} \"{}\"", level, task)
 }
 
 const EXPLORE_PREAMBLE: &str = include_str!(concat!(

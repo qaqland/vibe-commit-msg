@@ -72,7 +72,7 @@ pub async fn summarize(config: &Config) -> Result<String> {
         .build();
 
     let response = agent
-        .prompt("Explore the staged snapshot and update the project memory cache. Start by listing existing cache files, then examine the repository.")
+        .prompt("Update the project memory cache. Start by reading existing cache files, then investigate the repository and write updates.")
         .await?;
     Ok(response.trim().to_string())
 }

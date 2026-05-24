@@ -9,7 +9,7 @@
 
 ## Repo Shape
 - Single-crate Rust CLI (`edition = "2024"` — requires Rust 1.85+). Binary `src/main.rs`; lib modules in `src/lib.rs`.
-- Core logic: `src/llm.rs`, `src/config.rs`, `src/tool/` (8 tools + shared helpers in `src/tool/mod.rs`).
+- Core logic: `src/llm.rs`, `src/config.rs`, `src/tool/` (9 tools + shared helpers in `src/tool/mod.rs`).
 - Tool descriptions live in `docs/tool/*.txt`, compiled in via the `tool_description!` macro in `src/tool/mod.rs`.
 - LLM prompt templates live in `docs/prompt/*.txt`, compiled in via the `prompt_description!` macro in `src/llm.rs`.
 - Tool structs re-exported from `src/tool/mod.rs`: `pub use <module>::<Name>`. Use as `crate::tool::{Read, List, …}`.
@@ -17,9 +17,11 @@
 
 ## Runtime Model
 - `staged_hash()` in `src/tool/mod.rs` does `git rev-parse --show-toplevel` → `cd` → `git write-tree`, stored in a `OnceLock`. Called once at startup (all modes except Help).
+- `set_config()` in `src/tool/mod.rs` stores `Config` in a `OnceLock`. Called once at startup after `Config::load()`. The **subagent** tool reads it to build its own LLM client.
 - Tools that read file content/listings from the frozen tree hash: **read**, **list**, **grep** (via `git ls-tree`/`git cat-file`/`git grep --null <tree>`).
 - Tools that read from the live index (not the tree hash): **diff** (`git diff --cached`), **stat** (`git diff --cached --numstat`), **glob** (`git ls-files --cached`). They see what `git add` staged; in practice identical to the tree since the index doesn't change during execution.
 - **log** operates on commit history (HEAD), unrelated to the staged snapshot.
+- **subagent** launches a read-only explore agent (tools: read, list, grep, glob) with a specific task and thoroughness level. Used by summarize and commit orchestrators for deeper investigation
 - All tool paths are **repository-absolute** strings starting with `/` (e.g. `/src/main.rs`). Enforced by read/list/log. Paths are passed as-is to `git ls-tree`/`git cat-file`.
 - **Must be run inside a git repo.**
 
@@ -40,9 +42,9 @@ Before step 1, caches are auto-refreshed if stale (>7 days, see `STALENESS_SECS`
 ## Mode → LLM Function → Tool Assignment
 | Mode | Flag | LLM calls | Tools available to agent |
 |------|------|-----------|--------------------------|
-| Commit | (none) | `commit()` → `message()` | Cache, Diff, Stat, Read, Grep, Glob (commit); none (message) |
-| Summary | `-s` | `summarize()` + `style()` | List, Glob, Grep, Read, Diff, Stat, Log, Cache (summarize); Glob, Grep, Read, Log, Cache (style) |
-| Debug tool | `-t` | none (local `run_tool`) | all 8 (not LLM, just dispatched locally) |
+| Commit | (none) | `commit()` → `message()` | Cache, Diff, Stat, Read, Grep, Glob, Subagent (commit); none (message) |
+| Summary | `-s` | `summarize()` + `style()` | List, Glob, Grep, Read, Diff, Stat, Log, Cache, Subagent (summarize); Glob, Grep, Read, Log, Cache (style) |
+| Debug tool | `-t` | none (local `run_tool`) | all 9 (not LLM, just dispatched locally) |
 | Translate | `-e` | `translator()` | none (plain completion) |
 
 ## Cache System

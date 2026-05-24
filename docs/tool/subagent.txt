@@ -1,0 +1,6 @@
+Launch a read-only subagent to explore the codebase and answer a specific
+question. Use this when deeper investigation is needed that would require
+multiple sequential tool calls yourself.
+
+The subagent can use: read, list, grep, glob.
+It cannot modify files or caches.

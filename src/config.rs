@@ -6,6 +6,7 @@ use anyhow::{Result, anyhow, bail};
 const DEFAULT_BASE_URL: &str = "https://api.openai.com/v1";
 const DEFAULT_MODEL_ID: &str = "gpt-5.2";
 
+#[derive(Clone, Debug)]
 pub struct Config {
     pub base_url: String,
     pub model_id: String,

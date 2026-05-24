@@ -16,7 +16,7 @@ use rig::completion::Prompt;
 use rig::providers::openai;
 
 use crate::config::Config;
-use crate::tool::{Cache, Diff, Glob, Grep, List, Log, Read, Stat};
+use crate::tool::{Cache, Diff, Glob, Grep, List, Log, Read, Stat, Subagent};
 
 const DEFAULT_MAX_TURNS: usize = 100;
 
@@ -68,6 +68,7 @@ pub async fn summarize(config: &Config) -> Result<String> {
         .tool(Grep)
         .tool(Read)
         .tool(Cache)
+        .tool(Subagent)
         .build();
 
     let response = agent
@@ -121,6 +122,7 @@ pub async fn commit(config: &Config) -> Result<String> {
         .tool(Read)
         .tool(Grep)
         .tool(Glob)
+        .tool(Subagent)
         .build();
 
     let response = agent

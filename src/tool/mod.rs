@@ -10,6 +10,7 @@ pub mod list;
 pub mod log;
 pub mod read;
 pub mod stat;
+pub mod subagent;
 
 pub use cache::Cache;
 pub use diff::Diff;
@@ -19,8 +20,14 @@ pub use list::List;
 pub use log::Log;
 pub use read::Read;
 pub use stat::Stat;
+pub use subagent::Subagent;
 
 static STAGED_HASH: OnceLock<String> = OnceLock::new();
+static CONFIG: OnceLock<crate::config::Config> = OnceLock::new();
+
+pub fn set_config(config: crate::config::Config) {
+    CONFIG.set(config).expect("config already set");
+}
 
 pub fn staged_hash() -> Result<()> {
     if STAGED_HASH.get().is_some() {
@@ -259,6 +266,7 @@ fn tool_set() -> ToolSet {
     toolset.add_tool(grep::Grep);
     toolset.add_tool(stat::Stat);
     toolset.add_tool(diff::Diff);
+    toolset.add_tool(subagent::Subagent);
     toolset
 }
 

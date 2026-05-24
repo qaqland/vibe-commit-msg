@@ -96,6 +96,7 @@ async fn refresh_caches(config: &Config) -> Result<()> {
 async fn run() -> Result<()> {
     let mode = parse_args()?;
     let config = Config::load()?;
+    tool::set_config(config.clone());
     match mode {
         Mode::Commit(editmsg_path) => {
             tool::staged_hash()?;

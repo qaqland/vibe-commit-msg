@@ -23,19 +23,18 @@ struct Match {
 }
 
 fn parse_grep_line(line: &str) -> Option<Match> {
-    let (prefix, text) = line.rsplit_once(':')?;
-    let (prefix, line_str) = prefix.rsplit_once(':')?;
-    let (_tree, filepath) = prefix.split_once(':')?;
-
-    let line = line_str.parse::<usize>().ok()?;
+    let (_tree, rest) = line.split_once(':')?;
+    let mut parts = rest.splitn(3, '\0');
+    let filepath = parts.next()?.to_string();
+    let line = parts.next()?.parse::<usize>().ok()?;
+    let text = parts.next()?.to_string();
     if line == 0 {
         return None;
     }
-
     Some(Match {
-        filepath: filepath.to_string(),
+        filepath,
         line,
-        text: text.to_string(),
+        text,
     })
 }
 
@@ -89,6 +88,7 @@ impl Tool for Grep {
             "--full-name",
             "--line-number",
             "--no-color",
+            "--null", // NUL-separated fields for safe parsing
             "-e",
             &args.pattern,
             tree,

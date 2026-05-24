@@ -85,7 +85,7 @@ impl Tool for Grep {
             "grep",
             "--threads",
             "1",
-            "--basic-regexp",
+            "--perl-regexp",
             "--full-name",
             "--line-number",
             "--no-color",

@@ -254,6 +254,9 @@ pub(crate) fn git_find(path: &str) -> Result<Entry, rig::tool::ToolError> {
     Ok(one)
 }
 
+use rig::agent::{PromptHook, ToolCallHookAction};
+use rig::client::CompletionClient;
+use rig::providers::openai;
 use rig::tool::ToolSet;
 
 fn tool_set() -> ToolSet {
@@ -273,4 +276,32 @@ fn tool_set() -> ToolSet {
 pub async fn run_tool(name: &str, json: &str) -> Result<String> {
     let raw = tool_set().call(name, json.to_string()).await?;
     Ok(raw)
+}
+
+//
+
+#[derive(Clone)]
+pub struct ToolLog;
+
+impl PromptHook<openai::CompletionModel> for ToolLog {
+    async fn on_tool_call(
+        &self,
+        name: &str,
+        _: Option<String>,
+        _: &str,
+        args: &str,
+    ) -> ToolCallHookAction {
+        eprintln!("  {:>5} {:.50}", name, args);
+        ToolCallHookAction::cont()
+    }
+}
+
+pub fn agent() -> rig::agent::AgentBuilder<openai::CompletionModel, ToolLog> {
+    let config = CONFIG.get().expect("config not initialized");
+    let client = openai::CompletionsClient::builder()
+        .api_key(&config.auth_key)
+        .base_url(&config.base_url)
+        .build()
+        .expect("failed to build LLM client");
+    client.agent(&config.model_id).hook(ToolLog)
 }

@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 
-use vibe_commit_msg::config::Config;
 use vibe_commit_msg::llm;
 use vibe_commit_msg::tool::{self, cache};
 
@@ -85,18 +84,18 @@ fn parse_args() -> Result<Mode, lexopt::Error> {
     Ok(Mode::Skip)
 }
 
-async fn refresh_caches(config: &Config) -> Result<()> {
+async fn refresh_caches() -> Result<()> {
     eprintln!("refreshing project summary cache");
-    llm::summarize(config).await?;
+    llm::summarize().await?;
     eprintln!("refreshing style cache");
-    llm::style(config).await?;
+    llm::style().await?;
     Ok(())
 }
 
 async fn run() -> Result<()> {
     let mode = parse_args()?;
-    let config = Config::load()?;
-    tool::set_config(config.clone());
+    let config = vibe_commit_msg::config::Config::load()?;
+    tool::set_config(config);
     match mode {
         Mode::Commit(editmsg_path) => {
             tool::staged_hash()?;
@@ -104,10 +103,10 @@ async fn run() -> Result<()> {
 
             if cache::is_stale("style.md") {
                 eprintln!("refreshing stale style cache");
-                refresh_caches(&config).await?;
+                refresh_caches().await?;
             } else if cache::is_stale("project.md") {
                 eprintln!("refreshing stale project cache");
-                refresh_caches(&config).await?;
+                refresh_caches().await?;
             }
 
             let template = editmsg_path.as_ref().and_then(|p| {
@@ -127,7 +126,7 @@ async fn run() -> Result<()> {
 
             let summary = {
                 eprintln!("analyzing staged changes");
-                llm::commit(&config).await?
+                llm::commit().await?
             };
 
             if summary == "[No staged changes]" {
@@ -140,7 +139,7 @@ async fn run() -> Result<()> {
 
             let output = {
                 eprintln!("generating commit message");
-                llm::message(&config, &summary, &style_cache, template.as_deref()).await?
+                llm::message(&summary, &style_cache, template.as_deref()).await?
             };
 
             if let Some(ref path) = editmsg_path {
@@ -152,7 +151,7 @@ async fn run() -> Result<()> {
         }
         Mode::English(input) => {
             eprintln!("translating");
-            let output = llm::translator(&config, &input).await?;
+            let output = llm::translator(&input).await?;
             println!("{}", output);
         }
         Mode::Help => {
@@ -163,7 +162,7 @@ async fn run() -> Result<()> {
         Mode::Summary => {
             tool::staged_hash()?;
             tool::ensure_cache_dir();
-            refresh_caches(&config).await?;
+            refresh_caches().await?;
         }
         Mode::Tool(name, json) => {
             tool::staged_hash()?;

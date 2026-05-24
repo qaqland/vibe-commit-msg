@@ -1,12 +1,10 @@
-use rig::client::CompletionClient;
 use rig::completion::Prompt;
 use rig::completion::ToolDefinition;
-use rig::providers::openai;
 use rig::tool::Tool;
 use rig::tool::ToolError;
 use serde::Deserialize;
 
-use super::{CONFIG, Glob, Grep, List, Read, tool_bail};
+use super::{Glob, Grep, List, Read, agent, tool_bail};
 
 const EXPLORE_PREAMBLE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -54,10 +52,6 @@ impl Tool for Subagent {
     }
 
     async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
-        let config = CONFIG
-            .get()
-            .ok_or_else(|| ToolError::ToolCallError("config not initialized".into()))?;
-
         let (max_turns, level) = match args.thoroughness.as_deref() {
             Some("quick") => (MAX_TURNS_QUICK, "quick"),
             Some("thorough") => (MAX_TURNS_THOROUGH, "thorough"),
@@ -66,17 +60,7 @@ impl Tool for Subagent {
 
         let preamble = EXPLORE_PREAMBLE.replace("{level}", level);
 
-        let client = match openai::CompletionsClient::builder()
-            .api_key(&config.auth_key)
-            .base_url(&config.base_url)
-            .build()
-        {
-            Ok(c) => c,
-            Err(e) => tool_bail!("failed to build client: {}", e),
-        };
-
-        let agent = client
-            .agent(&config.model_id)
+        let agent = agent()
             .preamble(&preamble)
             .default_max_turns(max_turns)
             .tool(Read)

@@ -6,44 +6,77 @@ Step 1 — Load context:
   Use `cache` to read the project memory files. This gives you the
   project structure and conventions without re-scanning the repository.
 
-Step 2 — Examine the diff:
+Step 2 — Survey the diff:
   Use `stat` to see which files changed and how much. Use `diff` to
   read the actual changes.
 
-Step 3 — Classify and filter changes:
-  Lock files (Cargo.lock, package-lock.json, npm.lock, yarn.lock,
-  pnpm-lock.yaml, go.sum, Gemfile.lock, poetry.lock, etc.) are noise
-  unless they are the only staged changes. If only lock files changed,
-  the theme is "update dependencies" — no further analysis needed.
-  Otherwise, exclude lock files from the summary entirely.
+  Noise filtering — exclude from analysis (unless they are the only
+  staged changes):
+  - Lock files: Cargo.lock, package-lock.json, npm.lock, yarn.lock,
+    pnpm-lock.yaml, go.sum, Gemfile.lock, poetry.lock, etc.
+  - Generated code: files under __generated__, .snap, .snapshot
+  - Vendored dependencies: vendor/, third_party/, node_modules/
+  - Auto-managed configs: .editorconfig, .gitattributes
 
+  If only noise files changed, summarize as "update dependencies" or
+  "update generated files" — no further analysis needed.
+
+  Scale assessment:
+  - Small: ≤5 files, ≤200 lines changed — streamlined analysis OK
+  - Medium: 6–15 files or ≤1000 lines — standard flow
+  - Large: >15 files or >1000 lines — use subagent for exploration
+
+Step 3 — Classify and group changes:
   Classify each change group:
   - major: significant functional change (new feature, bug fix, API change)
   - minor: small but meaningful change (config tweak, added test)
   - trivial: whitespace, formatting, comment-only, version bump
 
-  Group related changes together. Changes in different files may be
-  part of the same logical change (e.g. adding a field to a struct
-  and updating its constructor). Unrelated changes must be separate
-  groups.
+  Group related changes together. Two changes are related when they:
+  (a) serve the same purpose, (b) one cannot be understood without the
+  other, or (c) affect the same abstraction layer. Changes touching
+  the same file may belong to different groups; changes across files
+  may belong to the same group.
 
-Step 4 — Deep-dive as needed:
-  If the diff is unclear, use `read` to examine the surrounding code,
-  `grep` to find references, or `glob` to locate related files. Only
-  do this when necessary to understand the change.
+  If no single theme ties all changes together, identify multiple
+  themes and prioritize by significance.
 
-Step 5 — Write the summary:
-  Before writing, ask:
-  - What is the one theme tying these changes together?
-  - Are changes in different files part of the same logical change?
-  - What module, feature, or concern do they affect?
+Step 4 — Contextual deep-dive:
+  Diffs alone are not enough. When the diff is ambiguous, use `read`
+  to examine surrounding code — function signatures, struct definitions,
+  caller context. Use `grep` to find references, `glob` to locate
+  related files.
 
+  Every description must explain why the change was made, not just
+  what changed. If intent is unclear, investigate rather than guess.
+  Mark uncertain inferences with [uncertain] — do not present
+  speculation as fact.
+
+Step 5 — Subagent exploration (for medium/large diffs):
+  Use `subagent` when deeper multi-step investigation is needed:
+  - quick: find a specific reference or verify a single relationship
+  - medium: understand how a module is used across the codebase
+  - thorough: trace cross-module call chains or architectural patterns
+
+  Prefer local tools (read, grep, glob) for single-file lookups.
+  Prefer subagent for tasks requiring 3+ sequential tool calls or
+  cross-module understanding.
+
+Step 6 — Verify the summary:
+  Before finalizing, check:
+  - Does each claim have evidence from the diff or code?
+  - Are there unmarked speculative statements? Mark them [uncertain].
+  - Are groups correctly separated — any that should merge or split?
+  - Are identifiers, paths, and API names preserved exactly?
+
+Step 7 — Write the summary:
   Output a structured summary with:
   - Overall significance: major / minor / trivial
-  - Theme: one-line overarching description (omit if trivial)
+  - Theme: one-line overarching description (omit if trivial;
+    list multiple prioritized themes if no single theme applies)
   - Change groups: for each group:
     - Significance: major / minor / trivial
-    - Description: what was done and why
+    - Description: what was done and why (mark uncertain parts [uncertain])
     - Related groups: (if any)
   - Technical details: identifiers, paths, API changes preserved exactly
 

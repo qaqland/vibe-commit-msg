@@ -5,6 +5,26 @@ use serde::{Deserialize, Serialize};
 
 use super::{paginate_output, tool_bail};
 
+pub fn show(args: &str) -> String {
+    let Ok(parsed) = serde_json::from_str::<LogArgs>(args) else {
+        return "(?)".into();
+    };
+    let mut parts = Vec::new();
+    if let Some(p) = parsed.path {
+        parts.push(p);
+    }
+    let offset = parsed.offset.unwrap_or(1);
+    let limit = parsed.limit.unwrap_or(DEFAULT_LIMIT);
+    if offset != 1 || limit != DEFAULT_LIMIT {
+        parts.push(format!("({}-{})", offset, offset + limit - 1));
+    }
+    if parts.is_empty() {
+        "(recent)".into()
+    } else {
+        parts.join(" ")
+    }
+}
+
 const MAX_BYTES: usize = 50 * 1024;
 const DEFAULT_LIMIT: usize = 20;
 const MAX_LIMIT: usize = 100;

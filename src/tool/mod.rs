@@ -291,7 +291,19 @@ impl PromptHook<openai::CompletionModel> for ToolLog {
         _: &str,
         args: &str,
     ) -> ToolCallHookAction {
-        eprintln!("  {:>5} {:.50}", name, args);
+        let summary = match name {
+            "read" => read::show(args),
+            "list" => list::show(args),
+            "grep" => grep::show(args),
+            "glob" => glob::show(args),
+            "diff" => diff::show(args),
+            "stat" => stat::show(args),
+            "log" => log::show(args),
+            "cache" => cache::show(args),
+            "subagent" => subagent::show(args),
+            _ => "(?)".into(),
+        };
+        eprintln!("{:>8} {}", name, summary);
         ToolCallHookAction::cont()
     }
 }

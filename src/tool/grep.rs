@@ -5,6 +5,16 @@ use serde::{Deserialize, Serialize};
 
 use super::{paginate_output, tool_bail};
 
+pub fn show(args: &str) -> String {
+    let Ok(parsed) = serde_json::from_str::<GrepArgs>(args) else {
+        return "(?)".into();
+    };
+    match parsed.path {
+        Some(p) => format!("\"{}\" {}", parsed.pattern, p),
+        None => format!("\"{}\"", parsed.pattern),
+    }
+}
+
 const RESULT_LIMIT: usize = 100;
 const MAX_BYTES: usize = 50 * 1024;
 

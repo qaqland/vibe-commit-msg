@@ -10,6 +10,19 @@ use serde::Deserialize;
 
 use super::{Entry, git_find, paginate_output, tool_bail};
 
+pub fn show(args: &str) -> String {
+    let Ok(parsed) = serde_json::from_str::<ReadArgs>(args) else {
+        return "(?)".into();
+    };
+    let mut s = parsed.path;
+    let offset = parsed.offset.unwrap_or(1);
+    let limit = parsed.limit.unwrap_or(DEFAULT_READ_LIMIT);
+    if offset != 1 || limit != DEFAULT_READ_LIMIT {
+        s.push_str(&format!(" ({}-{})", offset, offset + limit - 1));
+    }
+    s
+}
+
 const DEFAULT_READ_LIMIT: usize = 2000;
 const MAX_BYTES: usize = 50 * 1024;
 

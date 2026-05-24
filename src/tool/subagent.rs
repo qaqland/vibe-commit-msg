@@ -6,6 +6,29 @@ use serde::Deserialize;
 
 use super::{Glob, Grep, List, Read, agent, tool_bail};
 
+pub fn show(args: &str) -> String {
+    let Ok(parsed) = serde_json::from_str::<SubagentArgs>(args) else {
+        return "(?)".into();
+    };
+    let level = match parsed.thoroughness.as_deref() {
+        Some("quick") => "quick",
+        Some("thorough") => "thorough",
+        _ => "medium",
+    };
+    let task = if parsed.task.chars().count() > 60 {
+        let end = parsed
+            .task
+            .char_indices()
+            .nth(60)
+            .map(|(i, _)| i)
+            .unwrap_or(parsed.task.len());
+        format!("{}...", &parsed.task[..end])
+    } else {
+        parsed.task
+    };
+    format!("({}) \"{}\"", level, task)
+}
+
 const EXPLORE_PREAMBLE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/docs/prompt/explore.txt"

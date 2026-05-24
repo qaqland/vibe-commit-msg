@@ -5,6 +5,13 @@ use serde::{Deserialize, Serialize};
 
 use super::{paginate_output, tool_bail};
 
+pub fn show(args: &str) -> String {
+    let Ok(parsed) = serde_json::from_str::<GlobArgs>(args) else {
+        return "(?)".into();
+    };
+    format!("\"{}\"", parsed.pattern)
+}
+
 const RESULT_LIMIT: usize = 100;
 const MAX_BYTES: usize = 50 * 1024;
 

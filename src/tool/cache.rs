@@ -5,6 +5,18 @@ use serde::{Deserialize, Serialize};
 
 use super::tool_bail;
 
+pub fn show(args: &str) -> String {
+    let Ok(parsed) = serde_json::from_str::<CacheArgs>(args) else {
+        return "(?)".into();
+    };
+    match (parsed.path.as_deref(), parsed.content.as_deref()) {
+        (None, None) => "(list)".into(),
+        (Some(path), None) => format!("(load) {}", path),
+        (Some(path), Some(_)) => format!("(save) {}", path),
+        (None, Some(_)) => "(save) ?".into(),
+    }
+}
+
 const MAX_FILE_SIZE: usize = 8 * 1024;
 
 pub const STALENESS_SECS: u64 = 7 * 24 * 60 * 60;

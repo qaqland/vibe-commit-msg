@@ -301,9 +301,11 @@ impl PromptHook<openai::CompletionModel> for ToolLog {
             "log" => log::show(args),
             "cache" => cache::show(args),
             "subagent" => subagent::show(args),
-            _ => "(?)".into(),
+            _ => None,
         };
-        eprintln!(" - {:<9} {}", name, summary);
+        if let Some(summary) = summary {
+            eprintln!(" - {:<9} {}", name, summary);
+        }
         ToolCallHookAction::cont()
     }
 }

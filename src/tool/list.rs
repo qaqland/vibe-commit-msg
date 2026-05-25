@@ -4,11 +4,9 @@ use serde::Deserialize;
 
 use super::{Entry, paginate_output, tool_bail};
 
-pub fn show(args: &str) -> String {
-    let Ok(parsed) = serde_json::from_str::<ListArgs>(args) else {
-        return "(?)".into();
-    };
-    parsed.path
+pub fn show(args: &str) -> Option<String> {
+    let parsed = serde_json::from_str::<ListArgs>(args).ok()?;
+    Some(parsed.path)
 }
 
 const MAX_BYTES: usize = 50 * 1024;

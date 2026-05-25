@@ -6,10 +6,8 @@ use serde::Deserialize;
 
 use super::{Glob, Grep, List, Read, agent, tool_bail};
 
-pub fn show(args: &str) -> String {
-    let Ok(parsed) = serde_json::from_str::<SubagentArgs>(args) else {
-        return "(?)".into();
-    };
+pub fn show(args: &str) -> Option<String> {
+    let parsed = serde_json::from_str::<SubagentArgs>(args).ok()?;
     let level = match parsed.thoroughness.as_deref() {
         Some("quick") => "quick",
         Some("thorough") => "thorough",
@@ -26,7 +24,7 @@ pub fn show(args: &str) -> String {
     } else {
         parsed.task
     };
-    format!("{} \"{}\"", level, task)
+    Some(format!("{} \"{}\"", level, task))
 }
 
 const EXPLORE_PREAMBLE: &str = include_str!(concat!(

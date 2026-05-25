@@ -5,11 +5,9 @@ use serde::{Deserialize, Serialize};
 
 use super::{paginate_output, tool_bail};
 
-pub fn show(args: &str) -> String {
-    let Ok(parsed) = serde_json::from_str::<GlobArgs>(args) else {
-        return "(?)".into();
-    };
-    format!("\"{}\"", parsed.pattern)
+pub fn show(args: &str) -> Option<String> {
+    let parsed = serde_json::from_str::<GlobArgs>(args).ok()?;
+    Some(format!("\"{}\"", parsed.pattern))
 }
 
 const RESULT_LIMIT: usize = 100;

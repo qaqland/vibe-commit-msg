@@ -5,10 +5,8 @@ use serde::{Deserialize, Serialize};
 
 use super::{paginate_output, tool_bail};
 
-pub fn show(args: &str) -> String {
-    let Ok(parsed) = serde_json::from_str::<LogArgs>(args) else {
-        return "(?)".into();
-    };
+pub fn show(args: &str) -> Option<String> {
+    let parsed = serde_json::from_str::<LogArgs>(args).ok()?;
     // ref: https://github.com/0xPlaygrounds/rig/issues/1744
     let mut parts = Vec::new();
     parts.push(parsed.path.unwrap_or_else(|| "/".into()));
@@ -17,7 +15,7 @@ pub fn show(args: &str) -> String {
     if offset != 1 || limit != DEFAULT_LIMIT {
         parts.push(format!("{}-{}", offset, offset + limit - 1));
     }
-    parts.join(" ")
+    Some(parts.join(" "))
 }
 
 const MAX_BYTES: usize = 50 * 1024;

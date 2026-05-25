@@ -5,11 +5,9 @@ use serde::{Deserialize, Serialize};
 
 use super::{paginate_output, tool_bail};
 
-pub fn show(args: &str) -> String {
-    let Ok(parsed) = serde_json::from_str::<DiffArgs>(args) else {
-        return "(?)".into();
-    };
-    parsed.path.unwrap_or_else(|| "/".into())
+pub fn show(args: &str) -> Option<String> {
+    let parsed = serde_json::from_str::<DiffArgs>(args).ok()?;
+    Some(parsed.path.unwrap_or_else(|| "/".into()))
 }
 
 const MAX_BYTES: usize = 50 * 1024;

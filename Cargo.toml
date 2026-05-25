@@ -2,6 +2,7 @@
 name = "vibe-commit-msg"
 version = "0.2.0"
 edition = "2024"
+license = "MIT"
 
 [profile.release]
 lto = true

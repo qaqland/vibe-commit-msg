@@ -20,14 +20,102 @@ vibe-commit-msg -r <hash>   Review a specific commit
 
 | 维度 | Commit 模式 | Review 模式 |
 |------|------------|-------------|
-| 数据源 | `git diff --cached`（staged changes） | `git diff <hash>^..<hash>`（已提交的单个 commit） |
-| Tree 读取 | `git write-tree` → staged tree | `<hash>^{tree}` → 该 commit 的 tree |
+| 数据源 | staged changes（index → tree） | 已提交的单个 commit |
 | 流程 | Steps 1-7 → 生成 commit message | Steps 1-6 → 结构化摘要 + 审阅意见 |
 | 输出 | commit message（写入 COMMIT_EDITMSG 或 stdout） | 结构化摘要 + 审阅意见（仅 stdout） |
 | 缓存 | 可能触发缓存刷新 | 只读，不刷新缓存 |
 | 副作用 | 无 | 无 |
 
 ## 架构设计
+
+### 前置决策：引入 git2，用 Source enum 统一数据源
+
+**核心洞察**：commit 模式和 review 模式的工具层需求完全相同——都需要一个 tree 和一个 diff。区别仅在数据来源。用 git2 的结构化 API 可以将两种模式收敛到一个统一的 `Source` 抽象，工具层零分支。
+
+#### 为什么不用 shell-out + 虚拟 commit
+
+shell-out 下统一两种模式的可行方案是构造一个虚拟 commit（`git commit-tree`），让 diff/stat 统一走 `git diff <hash>^..<hash>`。但这是 workaround——为统一命令行接口凭空造了一个 commit 对象（dangling object，需 gc 清理），且初始提交需要特殊 diff 语法。
+
+#### git2 + Source enum 方案
+
+```rust
+pub struct Source {
+    pub tree: Tree,               // read / list / grep / glob 用
+    pub parent_tree: Option<Tree>, // diff / stat 用（None = 对空树比较）
+}
+```
+
+两种模式的初始化：
+
+```rust
+// commit 模式：从 index 构建
+fn from_staged(repo: &Repository) -> Source {
+    let mut index = repo.index().unwrap();
+    index.write_tree().unwrap();
+    let tree = repo.find_tree(index.write_tree().unwrap()).unwrap();
+    let parent_tree = repo.head().ok()
+        .and_then(|h| h.peel_to_tree().ok());
+    Source { tree, parent_tree }
+}
+
+// review 模式：从 commit 解析
+fn from_commit(repo: &Repository, hash: &str) -> Source {
+    let commit = repo.revparse_single(hash).unwrap().peel_to_commit().unwrap();
+    let tree = commit.tree().unwrap();
+    let parent_tree = commit.parent(0).ok().map(|p| p.tree().unwrap());
+    Source { tree, parent_tree }
+}
+```
+
+工具侧统一调用：
+
+```rust
+// diff.rs — 无模式分支
+fn call(&self, args) -> ... {
+    let source = super::source();
+    let diff = super::repo().diff_tree_to_tree(
+        source.parent_tree.as_ref(),  // None → 对空树，等价于全量 diff（自然处理初始提交）
+        Some(&source.tree),
+        None,
+    );
+}
+
+// read / list / grep / glob — 只用 source.tree，连 parent_tree 都不碰
+```
+
+#### 三种方案对比
+
+| 维度 | shell-out + 分支 | shell-out + 虚拟 commit | git2 + Source enum |
+|------|-----------------|------------------------|-------------------|
+| 工具内模式分支 | diff/stat/glob 各有 if/else | 0 | 0 |
+| 需要伪造 commit 对象 | 否 | 是 | **否** |
+| 全局状态 | STAGED_HASH + REVIEW_HASH | COMMIT_HASH | Repository + Source |
+| 初始提交处理 | 特殊命令语法 | 特殊 diff 语法 | `parent_tree = None` 自然处理 |
+| 概念简洁度 | 低 | 中 | **最高** |
+| 输出解析 | 字符串切分 | 字符串切分 | 结构化对象 |
+| 错误处理 | stderr + exit code | stderr + exit code | Result + typed error |
+
+#### 迁移影响：彻底移除 `Command::new("git")`
+
+引入 git2 后，项目中不再有任何 `Command::new("git")` 调用。所有 git 操作统一走 git2 API：
+
+- `run_git()` 体系 → 删除，替换为 `Repository` 方法调用
+- `STAGED_HASH` + `CONFIG` → `REPO` + `SOURCE` + `CONFIG`
+- 字符串解析（split/trim） → 结构化对象字段访问
+- `src/config.rs` 的 `Command::new("git").arg("config")` → `Repository::config()` 或 `Config::open_default()`
+- `-t` 调试模式：工具签名不变，仅内部实现替换
+
+**grep 工具的纯 Rust 实现**：当前 `git grep --perl-regexp` 不再保留，grep 改为：
+
+```
+source.tree.walk() → 逐 blob 读内容 → Rust regex crate 匹配
+```
+
+- 行为对齐目标：类 `grep -rE`，不追求 `git grep --perl-regexp` 的完整 PCRE 兼容
+- `regex` crate 覆盖绝大多数正则需求（非回溯 NFA，安全无 ReDoS）
+- 若 LLM 使用了 lookahead/lookbehind 等 PCRE 特性，`regex` 会返回错误，工具返回 `[Pattern not supported: ...]` 提示 LLM 简化 pattern
+- 性能约束：带 path 参数时只遍历子树，不带 path 时全量遍历 + 超时兜底
+- 二进制文件：每个 blob 先做 UTF-8 检测，非文本 blob 跳过
 
 ### 1. CLI 层 (`src/main.rs`)
 
@@ -49,17 +137,74 @@ pub enum Mode {
 
 ### 2. 工具层 (`src/tool/`)
 
-核心问题：当前 diff/stat 硬编码 `git diff --cached`，read/list/grep 依赖 `STAGED_HASH`。review 模式需要不同的 git 数据源。
+全局状态重构：
 
-**设计思路**：启动时根据模式设置全局状态，工具内部透明切换，不改工具 API 参数。
+```rust
+use std::sync::OnceLock;
+use git2::Repository;
 
-- **Tree 来源**：`STAGED_HASH` 在 review 模式下被设置为 `<hash>^{tree}`，read/list/grep 自然工作
-- **Diff 来源**：新增全局状态标记当前是否处于 review 模式及其 commit 引用，diff/stat 内部根据此标记选择 `git diff --cached` 或 `git diff <hash>^..<hash>`
+static REPO: OnceLock<Repository> = OnceLock::new();
+static SOURCE: OnceLock<Source> = OnceLock::new();
+static CONFIG: OnceLock<crate::config::Config> = OnceLock::new();
 
-具体实现方式待定（OnceLock / 环境变量 / 其他），但原则是：
-- 工具 API 无参数变化
-- 关心"当前是什么模式"的工具（diff/stat）能获取到该信息
-- 不关心模式的工具（read/list/grep）零改动
+pub fn init_staged() -> Result<()> {
+    let repo = Repository::discover(".")?;
+    let source = Source::from_staged(&repo)?;
+    REPO.set(repo).expect("repo already set");
+    SOURCE.set(source).expect("source already set");
+    Ok(())
+}
+
+pub fn init_review(hash: &str) -> Result<()> {
+    let repo = Repository::discover(".")?;
+    let source = Source::from_commit(&repo, hash)?;
+    REPO.set(repo).expect("repo already set");
+    SOURCE.set(source).expect("source already set");
+    Ok(())
+}
+
+pub fn repo() -> &'static Repository {
+    REPO.get().expect("repo not initialized")
+}
+
+pub fn source() -> &'static Source {
+    SOURCE.get().expect("source not initialized")
+}
+```
+
+工具迁移要点：
+
+| 工具 | 当前实现 | git2 实现 |
+|------|---------|----------|
+| read | `git cat-file blob <hash>` + 流式读取 | `source.tree.get_path(path)?.to_object(repo)` → 读 blob |
+| list | `git ls-tree --full-tree <tree>` | `source.tree.walk(TreeWalkMode::PreOrder, callback)` |
+| grep | `git grep --perl-regexp` | `source.tree.walk()` + 逐 blob `regex` 匹配 |
+| glob | `git ls-files --cached --glob-pathspecs` | `source.tree.walk()` + Rust glob pattern 过滤 |
+| diff | `git diff --cached` | `repo.diff_tree_to_tree(parent_tree, tree, None)` |
+| stat | `git diff --cached --numstat` | 从 `Diff` 对象的 delta/stats 提取 |
+| log | `git log --format` | `repo.revwalk()` + commit message 提取 |
+| cache | 纯文件系统 | 不变 |
+| subagent | 组合 read/list/grep/glob | 不变 |
+
+配置迁移：
+
+| 当前实现 | git2 实现 |
+|---------|----------|
+| `Command::new("git").arg("config").arg("--get")` | `repo.config()?.get_entry("vibe.auth-key")` 或 `Config::open_default()` |
+
+### 工具迁移难度评估
+
+迁移原则：行为对齐目标为常见 bash 工具（`grep -rE`、`find -name`），非 git 子命令语义。
+
+| 难度 | 工具 | 要点 |
+|------|------|------|
+| 中等 | log | `repo.revwalk()` + 格式化输出，体力活无难点 |
+| 低 | grep | `tree.walk()` + `regex`，PCRE 不再需要兼容，带 path 时只遍历子树，无 path 时全量 + 超时 |
+| 低 | glob | `tree.walk()` + `glob::Pattern::matches_path()`，标准 glob 语义，非 git pathspec |
+| 低 | read | blob 读取 + 复用现有 `is_utf8_text()` 二进制检测逻辑 |
+| 低 | diff / stat | 结构化 `Diff` 对象，比字符串解析更简单 |
+| 低 | list | `tree.walk()` 天然等价 |
+| 无 | cache / subagent | 不涉及 git |
 
 ### 3. 提示词层 (`docs/prompt/`)
 
@@ -125,30 +270,51 @@ pub async fn review(hash: &str) -> Result<String> {
 ### 5. 主流程 (`run()`)
 
 ```rust
+Mode::Commit(editmsg_path) => {
+    tool::init_staged()?;
+    tool::ensure_cache_dir();
+    // ... 现有 commit 逻辑
+}
+
 Mode::Review(hash) => {
-    // 1. 解析 hash → 完整 SHA
-    // 2. 验证 commit 存在
-    // 3. 设置 STAGED_HASH = <hash>^{tree}
-    // 4. 设置 diff 模式标记（让 diff/stat 知道用 review 路径）
-    // 5. 确保缓存目录存在（只读访问）
-    // 6. 调用 llm::review(&hash)
-    // 7. 输出到 stdout
+    tool::init_review(&hash)?;
+    tool::ensure_cache_dir();
+    let output = llm::review(&hash).await?;
+    println!("{}", output);
 }
 ```
 
-### 6. 测试策略
+### 6. 实施顺序
 
-- **工具层**：在 `tests/diff.bats` / `tests/stat.bats` 中新增测试——先创建多个 commit，然后用 `-t review-diff` / `-t review-stat` 工具传入目标 commit hash，验证输出正确
-- **集成层**：新增 `tests/review.bats`，验证 `-r <hash>` 的端到端行为
+1. 添加 `git2` 依赖到 `Cargo.toml`
+2. 重构 `src/tool/mod.rs`：引入 `Repository` + `Source`，替换 `STAGED_HASH` + `run_git()`
+3. 逐个迁移工具：diff → stat → read → list → glob → grep → log
+4. 迁移 `src/config.rs`：`Command::new("git").arg("config")` → git2 `Config` API
+5. 删除 `run_git()` 和所有 `Command::new("git")` 调用
+6. 更新 `AGENTS.md`，移除 "No git libraries" 规则
+7. 确保现有 bats 测试全部通过
+8. 实现新增：`Mode::Review`、`review.txt`、`llm::review()`
+9. 新增 `tests/review.bats`
+
+### 7. 测试策略
+
+- **迁移验证**：现有 bats 测试全部通过，确保 git2 迁移无行为回归
+- **工具层**：`-t diff` / `-t stat` / `-t read` 等调试模式验证 git2 实现
+- **集成层**：新增 `tests/review.bats`
   - 正常 commit 的审阅输出
   - 不存在的 hash 报错
-  - merge commit（多父）的处理
+  - merge commit（默认取第一父）
+  - 初始提交（无父 commit）
 
-### 7. 待决事项
+### 8. 已决事项
 
-| 事项 | 选项 | 备注 |
+| 事项 | 决定 | 理由 |
 |------|------|------|
-| diff/stat 模式切换的具体实现 | OnceLock / env var / 其他 | 原则已定（不改工具 API），实现细节留给实施阶段 |
-| merge commit 的处理 | 只看第一个父 / 报错提示 | 需确认用户期望 |
-| Review 模式是否需要 progress 工具 | 与 commit agent 同步 / 暂不需要 | 依赖 goal-progress-tool 的实施进度 |
-| review.txt 是否引用 commit.txt 以减少重复 | 各自独立 / 共享步骤模板 | 独立更灵活，但步骤描述需手动同步 |
+| git 访问方式 | git2 替代 shell-out，彻底移除 `Command::new("git")` | Source enum 统一数据源，工具零分支，结构化 API |
+| 模式切换实现 | Source enum（tree + parent_tree） | 不需要虚拟 commit，无 cleanup，初始提交自然处理 |
+| merge commit | 默认取第一父 | 与 `git show` 行为一致，用户可通过 `^2` 手动指定 |
+| review.txt 与 commit.txt | 独立 | 步骤 7 差异大，共享模板增加维护耦合 |
+| grep 工具 | `source.tree.walk()` + Rust `regex` crate | 行为对齐 `grep -rE`，不追求 PCRE 兼容；全量遍历加超时兜底 |
+| config 读取 | git2 `Config` API | 不保留 shell-out，与工具层统一 |
+| 工具行为标准 | 对齐常见 bash 工具，非 git 子命令语义 | grep 对齐 `grep -rE`，glob 对齐 `find -name`，降低实现复杂度 |
+| Review 模式的 progress 工具 | 暂不需要 | 与 commit agent 同步启用 |

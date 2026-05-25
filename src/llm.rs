@@ -12,7 +12,7 @@ macro_rules! prompt_description {
 use anyhow::Result;
 use rig::completion::Prompt;
 
-use crate::tool::{self, Cache, Diff, Glob, Grep, List, Log, Read, Stat, Subagent};
+use crate::tool::{self, Cache, Diff, Glob, Grep, List, Log, Progress, Read, Stat, Subagent};
 
 const DEFAULT_MAX_TURNS: usize = 100;
 
@@ -59,6 +59,7 @@ pub async fn style() -> Result<String> {
 }
 
 pub async fn commit() -> Result<String> {
+    tool::progress::reset_progress();
     let preamble = prompt_description!("commit");
     let agent = tool::agent()
         .preamble(preamble)
@@ -69,6 +70,7 @@ pub async fn commit() -> Result<String> {
         .tool(Read)
         .tool(Grep)
         .tool(Glob)
+        .tool(Progress)
         .tool(Subagent)
         .build();
     let response = agent

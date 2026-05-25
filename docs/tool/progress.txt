@@ -1,0 +1,51 @@
+Track progress through the commit-summary analysis workflow.
+
+Use this tool before and after each major step in the commit prompt. It returns
+a one-line summary of the updated step and overall progress.
+
+Rules:
+- Update exactly one step per call.
+- Mark a step `in_progress` before you do that step's work.
+- Mark the same step `completed` only after the work is done.
+- `note` is required when `status` is `completed`; include the evidence or result.
+- If a step does not apply (e.g. Step 5 for small diffs), mark it `completed` with
+  a note explaining why it was skipped.
+- Do not mark several steps complete at once.
+
+Steps:
+- Step 1 — Load context
+- Step 2 — Survey the diff
+- Step 3 — Classify and group
+- Step 4 — Contextual deep-dive
+- Step 5 — Subagent exploration
+- Step 6 — Verify the summary
+- Step 7 — Write the summary
+
+Example — mark a step in progress:
+```json
+{
+  "step": "Step 2 — Survey the diff",
+  "status": "in_progress"
+}
+```
+Returns: `Step 2 — Survey the diff in_progress. 1/7 done.`
+
+Example — complete a step with evidence:
+```json
+{
+  "step": "Step 2 — Survey the diff",
+  "status": "completed",
+  "note": "4 files changed, 80 added, 12 deleted"
+}
+```
+Returns: `Step 2 — Survey the diff completed (4 files changed, 80 added, 12 deleted). 2/7 done.`
+
+Example — skip a step that does not apply:
+```json
+{
+  "step": "Step 5 — Subagent exploration",
+  "status": "completed",
+  "note": "skipped: small diff, no subagent needed"
+}
+```
+Returns: `Step 5 — Subagent exploration completed (skipped: small diff, no subagent needed). 5/7 done.`

@@ -8,7 +8,6 @@ pub mod glob;
 pub mod grep;
 pub mod list;
 pub mod log;
-pub mod progress;
 pub mod read;
 pub mod stat;
 pub mod subagent;
@@ -19,7 +18,6 @@ pub use glob::Glob;
 pub use grep::Grep;
 pub use list::List;
 pub use log::Log;
-pub use progress::Progress;
 pub use read::Read;
 pub use stat::Stat;
 pub use subagent::Subagent;
@@ -271,7 +269,6 @@ fn tool_set() -> ToolSet {
     toolset.add_tool(grep::Grep);
     toolset.add_tool(stat::Stat);
     toolset.add_tool(diff::Diff);
-    toolset.add_tool(progress::Progress);
     toolset.add_tool(subagent::Subagent);
     toolset
 }
@@ -303,7 +300,6 @@ impl PromptHook<openai::CompletionModel> for ToolLog {
             "stat" => stat::show(args),
             "log" => log::show(args),
             "cache" => cache::show(args),
-            "progress" => progress::show(args),
             "subagent" => subagent::show(args),
             _ => None,
         };

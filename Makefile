@@ -1,5 +1,6 @@
 BIN ?= $(CURDIR)/target/release/vibe-commit-msg
 
+.DEFAULT_GOAL := build
 .PHONY: test build
 
 test: build

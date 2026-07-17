@@ -84,11 +84,26 @@ fn parse_args() -> Result<Mode, lexopt::Error> {
     Ok(Mode::Skip)
 }
 
+struct Step(std::time::Instant);
+
+fn step(label: &str) -> Step {
+    eprintln!("{label}");
+    Step(std::time::Instant::now())
+}
+
+impl Step {
+    fn done(self) {
+        eprintln!("    done in {:.1}s", self.0.elapsed().as_secs_f64());
+    }
+}
+
 async fn refresh_caches() -> Result<()> {
-    eprintln!("refreshing project cache");
+    let s = step("refreshing project cache");
     llm::summarize().await?;
-    eprintln!("refreshing style cache");
+    s.done();
+    let s = step("refreshing style cache");
     llm::style().await?;
+    s.done();
     Ok(())
 }
 
@@ -121,8 +136,10 @@ async fn run() -> Result<()> {
             });
 
             let summary = {
-                eprintln!("analyzing staged changes");
-                llm::commit().await?
+                let s = step("analyzing staged changes");
+                let summary = llm::commit().await?;
+                s.done();
+                summary
             };
 
             if summary == "[No staged changes]" {
@@ -134,8 +151,10 @@ async fn run() -> Result<()> {
                 .unwrap_or_else(|| "[No style cache found]".to_string());
 
             let output = {
-                eprintln!("generating commit message");
-                llm::message(&summary, &style_cache, template.as_deref()).await?
+                let s = step("generating commit message");
+                let output = llm::message(&summary, &style_cache, template.as_deref()).await?;
+                s.done();
+                output
             };
 
             if let Some(ref path) = editmsg_path {
@@ -146,8 +165,9 @@ async fn run() -> Result<()> {
             }
         }
         Mode::English(input) => {
-            eprintln!("translating");
+            let s = step("translating");
             let output = llm::translator(&input).await?;
+            s.done();
             println!("{}", output);
         }
         Mode::Help => {

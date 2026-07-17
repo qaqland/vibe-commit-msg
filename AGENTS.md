@@ -39,6 +39,12 @@ Commit mode is a two-step LLM process, not a single call:
 
 Before step 1, caches are auto-refreshed if stale (>7 days, see `STALENESS_SECS` in `cache.rs`).
 
+## Retry & Progress
+- Every `agent.prompt()` goes through `prompt_with_retry()` in `src/llm.rs` (also used by the subagent tool): up to 4 attempts, exponential backoff 2s → 4s → 8s (capped at 30s).
+- Retryable: connection errors, 408/429/5xx, malformed responses (`JsonError`/`ResponseError`). Not retried: other 4xx (bad request/auth), tool errors, max-turns. Note: rig surfaces HTTP statuses as `http_client::Error::InvalidStatusCode*` inside `CompletionError::HttpError`.
+- A retry restarts the whole agent loop from the first turn; tool calls re-run (they are read-only or idempotent cache writes).
+- Progress on stderr: step labels + `done in Xs` timing (`step()` in `src/main.rs`), `· model call #N` per request and ` - <tool> <args>` per tool call (both from the `ToolLog` prompt hook in `src/tool/mod.rs`), retry notices from `prompt_with_retry()`.
+
 ## Mode → LLM Function → Tool Assignment
 | Mode | Flag | LLM calls | Tools available to agent |
 |------|------|-----------|--------------------------|

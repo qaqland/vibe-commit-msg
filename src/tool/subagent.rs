@@ -90,8 +90,8 @@ impl Tool for Subagent {
             .tool(Glob)
             .build();
 
-        match agent.prompt(&args.task).await {
-            Ok(response) => Ok(response.trim().to_string()),
+        match crate::llm::prompt_with_retry("subagent", || agent.prompt(&args.task)).await {
+            Ok(response) => Ok(response),
             Err(e) => tool_bail!("subagent failed: {}", e),
         }
     }

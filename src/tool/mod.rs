@@ -254,8 +254,9 @@ pub(crate) fn git_find(path: &str) -> Result<Entry, rig::tool::ToolError> {
     Ok(one)
 }
 
-use rig::agent::{PromptHook, ToolCallHookAction};
+use rig::agent::{HookAction, PromptHook, ToolCallHookAction};
 use rig::client::CompletionClient;
+use rig::message::Message;
 use rig::providers::openai;
 use rig::tool::ToolSet;
 
@@ -280,10 +281,21 @@ pub async fn run_tool(name: &str, json: &str) -> Result<String> {
 
 //
 
-#[derive(Clone)]
-pub struct ToolLog;
+#[derive(Clone, Default)]
+pub struct ToolLog {
+    calls: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+}
 
 impl PromptHook<openai::CompletionModel> for ToolLog {
+    async fn on_completion_call(&self, _: &Message, _: &[Message]) -> HookAction {
+        let n = self
+            .calls
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+            + 1;
+        eprintln!(" · model call #{n}");
+        HookAction::cont()
+    }
+
     async fn on_tool_call(
         &self,
         name: &str,
@@ -317,5 +329,5 @@ pub fn agent() -> rig::agent::AgentBuilder<openai::CompletionModel, ToolLog> {
         .base_url(&config.base_url)
         .build()
         .expect("failed to build LLM client");
-    client.agent(&config.model_id).hook(ToolLog)
+    client.agent(&config.model_id).hook(ToolLog::default())
 }
